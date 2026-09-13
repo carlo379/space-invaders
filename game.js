@@ -84,7 +84,7 @@ const keyLight = new THREE.DirectionalLight(0x70eaff, 0.55);
 keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 scene.add(new THREE.AmbientLight(0x1a1020, 0.35));
-const playerRim = new THREE.PointLight(0x5cecff, 1.2, 14, 2);
+const playerRim = new THREE.PointLight(0x5cecff, 1.56, 14, 2);
 playerRim.position.set(0, 1.6, 1.5);
 scene.add(playerRim);
 
@@ -165,14 +165,17 @@ const textures = {
 
 /* ---------- Mesh helpers ---------- */
 function makePlayerMesh() {
-  /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u */
+  /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u
+   * AD contrast pack (FINAL): dusty rose coat + lilac rim + gun rear plate */
   const g = new THREE.Group();
-  const coatDeep = new THREE.MeshBasicMaterial({ color: 0x05050c });
-  const coatMid = new THREE.MeshBasicMaterial({ color: 0x0b0b18 });
-  const coatAccent = new THREE.MeshBasicMaterial({ color: 0x17050f });
+  const coatDeep = new THREE.MeshBasicMaterial({ color: 0x3a2438 }); /* legs */
+  const coatMid = new THREE.MeshBasicMaterial({ color: 0x6b3a52 }); /* torso */
+  const coatAccent = new THREE.MeshBasicMaterial({ color: 0x8a4a62 }); /* hood/shoulders */
+  const rim = new THREE.MeshBasicMaterial({ color: 0xc47a94 }); /* +Z facing strips */
   const cyan = new THREE.MeshBasicMaterial({ color: 0x70eaff });
   const ice = new THREE.MeshBasicMaterial({ color: 0xe5ffff });
   const beam = new THREE.MeshBasicMaterial({ color: 0x5cecff });
+  const rearPlate = new THREE.MeshBasicMaterial({ color: 0x9ef6ff });
 
   const legL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.16), coatDeep);
   legL.position.set(-0.11, 0.26, 0.02);
@@ -202,6 +205,16 @@ function makePlayerMesh() {
   const armR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.42), coatMid);
   armR.position.set(0.2, 0.96, -0.22);
 
+  /* +Z rim strips for chase-cam read */
+  const rimHood = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.03, 0.04), rim);
+  rimHood.position.set(0, 1.52, 0.16);
+  const rimShoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.04), rim);
+  rimShoulderL.position.set(-0.2, 1.2, 0.14);
+  const rimShoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.04), rim);
+  rimShoulderR.position.set(0.2, 1.2, 0.14);
+  const rimHem = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.03, 0.04), rim);
+  rimHem.position.set(0, 0.68, 0.18);
+
   /* Cannon ~1.6u along −Z, held at chest height */
   const gunY = 0.98;
   const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.22), cyan);
@@ -214,10 +227,14 @@ function makePlayerMesh() {
   barrel.position.set(0, gunY, -1.42);
   const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.08), beam);
   muzzle.position.set(0, gunY, -1.58);
+  /* Rear plate faces +Z / camera so chase view isn’t only the tip */
+  const gunRear = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.28, 0.04), rearPlate);
+  gunRear.position.set(0, gunY, 0.16);
 
   g.add(
     legL, legR, skirt, torso, shoulders, hood, hoodPeak, visor,
-    armL, armR, stock, tube, core, barrel, muzzle
+    armL, armR, rimHood, rimShoulderL, rimShoulderR, rimHem,
+    stock, tube, core, barrel, muzzle, gunRear
   );
   g.userData.kind = 'player';
   g.userData.muzzleLocal = { x: 0, y: gunY, z: -1.58 };
