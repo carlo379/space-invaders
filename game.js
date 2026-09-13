@@ -1,9 +1,7 @@
 /**
  * Scary Invaders — Three.js 3D arcade
  * Axes: X right, Y up, Z into void (fleet −Z, player ≈0, camera +Z)
- * Fleet marches in X; on edge hit steps DOWN in Y (classic). Never advances in +Z.
  * Super Laser = formation COLUMN wipe (same col index), never a row.
- * Aim: A/D strafe · arrows aim (pitch/yaw) · bullets follow aimDir.
  */
 import * as THREE from 'three';
 
@@ -23,15 +21,6 @@ const FLEET_BACK_Z = -11.2;
 const COL_STEP = 1.65;
 const ROW_STEP = 1.125;
 const EDGE = 11.2;
-/** Bottom-of-formation starting height (row 0 is highest). */
-const FLEET_TOP_Y = 6.8;
-const FLEET_DROP_Y = 0.42;
-/** Aliens reach this Y → lose (near barrier / player plane). */
-const LOSE_Y = 1.15;
-const AIM_YAW_SPEED = 2.4;
-const AIM_PITCH_SPEED = 2.1;
-const AIM_PITCH_MIN = -0.55;
-const AIM_PITCH_MAX = 1.05;
 
 const alienColors = [0xd43c58, 0x9b56d4, 0x75d36e, 0xa83b82, 0xc5ba4f, 0xeb5268];
 const alienRowIds = ['crown', 'spider', 'watcher', 'stalker', 'batwing', 'worm'];
@@ -78,8 +67,7 @@ scene.background = new THREE.Color(0x020207);
 scene.fog = new THREE.FogExp2(0x020207, 0.038);
 
 const camera = new THREE.PerspectiveCamera(52, 3 / 2, 0.1, 120);
-/* Lower cam Y + look mid-fleet so playfield sits higher with headroom above invaders */
-camera.position.set(0, 3.85, 8.15);
+camera.position.set(0, 5.4, 7.4);
 
 const root = new THREE.Group();
 scene.add(root);
@@ -91,13 +79,12 @@ const bombRoot = new THREE.Group();
 const fxRoot = new THREE.Group();
 root.add(alienRoot, barrierRoot, bulletRoot, bombRoot, fxRoot);
 
-/* Lighting — cool cyan rim, void crushed (do not brighten fog/aliens) */
+/* Lighting — cool cyan rim, void crushed */
 const keyLight = new THREE.DirectionalLight(0x70eaff, 0.55);
 keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 scene.add(new THREE.AmbientLight(0x1a1020, 0.35));
-/* AD contrast: +30% player rim only */
-const playerRim = new THREE.PointLight(0x5cecff, 1.56, 14, 2);
+const playerRim = new THREE.PointLight(0x5cecff, 1.2, 14, 2);
 playerRim.position.set(0, 1.6, 1.5);
 scene.add(playerRim);
 
@@ -178,20 +165,14 @@ const textures = {
 
 /* ---------- Mesh helpers ---------- */
 function makePlayerMesh() {
-  /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u
-   * AD contrast pack (interim): dusty rose coat + lilac rim + gun rear plate */
+  /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u */
   const g = new THREE.Group();
-  const coatDeep = new THREE.MeshBasicMaterial({ color: 0x3a2438 }); /* legs */
-  const coatMid = new THREE.MeshBasicMaterial({ color: 0x6b3a52 }); /* torso */
-  const coatAccent = new THREE.MeshBasicMaterial({ color: 0x8a4a62 }); /* shoulders/hood */
-  const rimTrim = new THREE.MeshBasicMaterial({ color: 0xc47a94 }); /* +Z facing strips */
+  const coatDeep = new THREE.MeshBasicMaterial({ color: 0x05050c });
+  const coatMid = new THREE.MeshBasicMaterial({ color: 0x0b0b18 });
+  const coatAccent = new THREE.MeshBasicMaterial({ color: 0x17050f });
   const cyan = new THREE.MeshBasicMaterial({ color: 0x70eaff });
   const ice = new THREE.MeshBasicMaterial({ color: 0xe5ffff });
   const beam = new THREE.MeshBasicMaterial({ color: 0x5cecff });
-  const rearPlate = new THREE.MeshBasicMaterial({ color: 0x9ef6ff });
-
-  const body = new THREE.Group();
-  const gun = new THREE.Group();
 
   const legL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.16), coatDeep);
   legL.position.set(-0.11, 0.26, 0.02);
@@ -221,46 +202,25 @@ function makePlayerMesh() {
   const armR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.42), coatMid);
   armR.position.set(0.2, 0.96, -0.22);
 
-  /* Rim strips facing +Z (camera) — hood brim, shoulder tops, coat hem */
-  const hoodRim = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.05), rimTrim);
-  hoodRim.position.set(0, 1.52, 0.18);
-  const shoulderRimL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.035, 0.05), rimTrim);
-  shoulderRimL.position.set(-0.2, 1.22, 0.14);
-  const shoulderRimR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.035, 0.05), rimTrim);
-  shoulderRimR.position.set(0.2, 1.22, 0.14);
-  const hemRim = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.05), rimTrim);
-  hemRim.position.set(0, 0.44, 0.2);
-
-  body.add(
-    legL, legR, skirt, torso, shoulders, hood, hoodPeak, visor,
-    armL, armR, hoodRim, shoulderRimL, shoulderRimR, hemRim
-  );
-
   /* Cannon ~1.6u along −Z, held at chest height */
   const gunY = 0.98;
   const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.22), cyan);
-  stock.position.set(0, 0, 0.02);
+  stock.position.set(0, gunY, 0.02);
   const tube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.25), cyan);
-  tube.position.set(0, 0, -0.72);
+  tube.position.set(0, gunY, -0.72);
   const core = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.55), ice);
-  core.position.set(0, 0, -0.55);
+  core.position.set(0, gunY, -0.55);
   const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.28), ice);
-  barrel.position.set(0, 0, -1.42);
+  barrel.position.set(0, gunY, -1.42);
   const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.08), beam);
-  muzzle.position.set(0, 0, -1.58);
-  /* Rear plate ≥0.40×0.28 facing +Z / camera */
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 0.06), rearPlate);
-  plate.position.set(0, 0, 0.16);
+  muzzle.position.set(0, gunY, -1.58);
 
-  gun.position.set(0, gunY, 0);
-  gun.add(stock, tube, core, barrel, muzzle, plate);
-
-  g.add(body, gun);
+  g.add(
+    legL, legR, skirt, torso, shoulders, hood, hoodPeak, visor,
+    armL, armR, stock, tube, core, barrel, muzzle
+  );
   g.userData.kind = 'player';
-  g.userData.gun = gun;
-  g.userData.body = body;
   g.userData.muzzleLocal = { x: 0, y: gunY, z: -1.58 };
-  g.userData.muzzleLen = 1.58;
   return g;
 }
 
@@ -449,20 +409,8 @@ function makePlayer() {
     d: 0.7,
     speed: 9.75,
     cooldown: 0,
-    invuln: 0,
-    /* aim: yaw 0 = −Z; pitch >0 aims up toward elevated fleet */
-    aimYaw: 0,
-    aimPitch: 0.28,
-    aimDir: new THREE.Vector3(0, 0.28, -1).normalize()
+    invuln: 0
   };
-}
-
-function refreshAimDir(p) {
-  const cy = Math.cos(p.aimYaw);
-  const sy = Math.sin(p.aimYaw);
-  const cp = Math.cos(p.aimPitch);
-  const sp = Math.sin(p.aimPitch);
-  p.aimDir.set(sy * cp, sp, -cy * cp).normalize();
 }
 
 function makeAliens() {
@@ -478,13 +426,11 @@ function makeAliens() {
       const mesh = makeAlienBillboard(id, color);
       alienRoot.add(mesh);
       const x = startX + c * COL_STEP;
-      /* Rows stack in Y (top row highest); Z fixed — no march toward camera */
-      const y = FLEET_TOP_Y - r * ROW_STEP; /* hitbox center */
-      const z = FLEET_BACK_Z;
-      mesh.position.set(x, y - 0.375, z);
+      const z = FLEET_BACK_Z + r * ROW_STEP;
+      mesh.position.set(x, 0, z);
       aliens.push({
         x,
-        y,
+        y: 0,
         z,
         w: 0.95,
         h: 0.75,
@@ -615,9 +561,6 @@ function nextWave() {
   makeAliens();
   makeBarriers();
   player.x = 0;
-  player.aimYaw = 0;
-  player.aimPitch = 0.28;
-  refreshAimDir(player);
   updateHud();
   burst(0, 0.5, -4, '#b5ef68', 30);
   shake = 0.35;
@@ -627,29 +570,20 @@ function nextWave() {
 function shoot() {
   if (state !== 'playing' || player.cooldown > 0) return;
   initAudio();
-  refreshAimDir(player);
   const mesh = makeBulletMesh();
   bulletRoot.add(mesh);
-  const len = playerMesh?.userData?.muzzleLen ?? 1.58;
-  const gunY = 0.98;
-  const dir = player.aimDir;
-  const speed = 15;
+  const muzzle = playerMesh?.userData?.muzzleLocal || { x: 0, y: 0.98, z: -1.58 };
   const b = {
-    x: player.x + dir.x * len,
-    y: gunY + dir.y * len,
-    z: player.z + dir.z * len,
-    w: 0.12,
-    h: 0.12,
-    d: 0.35,
-    vx: dir.x * speed,
-    vy: dir.y * speed,
-    vz: dir.z * speed,
-    life: 2.2,
+    x: player.x + muzzle.x,
+    y: muzzle.y,
+    z: player.z + muzzle.z,
+    w: 0.1,
+    h: 0.1,
+    d: 0.4,
+    vz: -15,
     mesh
   };
   mesh.position.set(b.x, b.y, b.z);
-  /* Orient bullet along velocity */
-  mesh.lookAt(b.x + b.vx, b.y + b.vy, b.z + b.vz);
   bullets.push(b);
   player.cooldown = 0.25;
   tone(520, 0.07, 'square', 0.055, 230);
@@ -675,11 +609,10 @@ function fireSuperLaser() {
   superAmmo--;
   const beamX = player.x; /* weapon / player X; wipe still by a.col */
   const beamZ = (Math.min(...targets.map((t) => t.z)) + Math.max(...targets.map((t) => t.z))) / 2;
-  const beamY = targets.reduce((s, t) => s + t.y, 0) / targets.length;
   superBeam = { col: targetCol, x: beamX, z: beamZ, life: 0.62, max: 0.62 };
   if (beamMesh) scene.remove(beamMesh);
   beamMesh = makeSuperBeamMesh();
-  beamMesh.position.set(beamX, Math.max(0, beamY - 7), beamZ);
+  beamMesh.position.set(beamX, 0, beamZ);
   scene.add(beamMesh);
   initAudio();
   for (const a of targets) {
@@ -698,17 +631,6 @@ function aabbXZ(a, b) {
   return (
     a.x - a.w / 2 < b.x + b.w / 2 &&
     a.x + a.w / 2 > b.x - b.w / 2 &&
-    a.z - a.d / 2 < b.z + b.d / 2 &&
-    a.z + a.d / 2 > b.z - b.d / 2
-  );
-}
-
-function aabb3(a, b) {
-  return (
-    a.x - a.w / 2 < b.x + b.w / 2 &&
-    a.x + a.w / 2 > b.x - b.w / 2 &&
-    a.y - a.h / 2 < b.y + b.h / 2 &&
-    a.y + a.h / 2 > b.y - b.h / 2 &&
     a.z - a.d / 2 < b.z + b.d / 2 &&
     a.z + a.d / 2 > b.z - b.d / 2
   );
@@ -752,9 +674,6 @@ function loseLife() {
     return;
   }
   player.x = 0;
-  player.aimYaw = 0;
-  player.aimPitch = 0.28;
-  refreshAimDir(player);
   player.invuln = 2;
   for (const b of bullets) bulletRoot.remove(b.mesh);
   for (const b of bombs) bombRoot.remove(b.mesh);
@@ -771,7 +690,7 @@ function syncAlienMeshes() {
     a.mesh.visible = true;
     const twitch = Math.sin(elapsed * 13 + a.phase) * 0.03;
     const bob = Math.sin(elapsed * 2.8 + a.phase) * 0.05;
-    a.mesh.position.set(a.x + twitch, a.y - 0.375 + bob, a.z);
+    a.mesh.position.set(a.x + twitch, bob, a.z);
     faceCameraY(a.mesh);
   }
 }
@@ -801,38 +720,19 @@ function update(dt) {
     }
   }
 
-  /* A/D strafe only — arrows reserved for aim */
-  if (keys.has('a')) player.x -= player.speed * dt;
-  if (keys.has('d')) player.x += player.speed * dt;
+  if (keys.has('ArrowLeft') || keys.has('a')) player.x -= player.speed * dt;
+  if (keys.has('ArrowRight') || keys.has('d')) player.x += player.speed * dt;
   player.x = clamp(player.x, -EDGE + player.w / 2, EDGE - player.w / 2);
-
-  if (keys.has('ArrowLeft')) player.aimYaw += AIM_YAW_SPEED * dt;
-  if (keys.has('ArrowRight')) player.aimYaw -= AIM_YAW_SPEED * dt;
-  if (keys.has('ArrowUp')) player.aimPitch += AIM_PITCH_SPEED * dt;
-  if (keys.has('ArrowDown')) player.aimPitch -= AIM_PITCH_SPEED * dt;
-  player.aimYaw = clamp(player.aimYaw, -1.35, 1.35);
-  player.aimPitch = clamp(player.aimPitch, AIM_PITCH_MIN, AIM_PITCH_MAX);
-  refreshAimDir(player);
 
   if (keys.has(' ') || keys.has('Spacebar')) shoot();
 
   for (const b of bullets) {
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
     b.z += b.vz * dt;
-    b.life -= dt;
     b.mesh.position.set(b.x, b.y, b.z);
     faceCameraY(b.mesh);
   }
   bullets = bullets.filter((b) => {
-    const oob =
-      b.life <= 0 ||
-      b.z < FLEET_BACK_Z - 4 ||
-      b.z > PLAYER_Z + 4 ||
-      Math.abs(b.x) > EDGE + 4 ||
-      b.y < -2 ||
-      b.y > FLEET_TOP_Y + 4;
-    if (oob || b.dead) {
+    if (b.z < FLEET_BACK_Z - 2) {
       bulletRoot.remove(b.mesh);
       return false;
     }
@@ -854,48 +754,39 @@ function update(dt) {
 
   const left = Math.min(...live.map((a) => a.x - a.w / 2));
   const right = Math.max(...live.map((a) => a.x + a.w / 2));
-  /* Classic: reverse + step DOWN in Y — never advance toward camera in +Z */
-  if ((fleet.dir > 0 && right > EDGE) || (fleet.dir < 0 && left < -EDGE)) {
+  if (right > EDGE || left < -EDGE) {
     fleet.dir *= -1;
     for (const a of aliens) {
-      if (a.alive) {
-        a.x += fleet.dir * 0.2;
-        a.y -= FLEET_DROP_Y;
-      }
+      if (a.alive) a.z += 0.45;
     }
     fleet.impact = 1;
     shake = Math.max(shake, 0.14);
     tone(55 + wave * 4, 0.11, 'sawtooth', 0.045, 28);
   }
 
-  const lowest = Math.min(...live.map((a) => a.y - a.h / 2));
-  if (lowest <= LOSE_Y) {
+  const closest = Math.max(...live.map((a) => a.z + a.d / 2));
+  if (closest > player.z - 0.15) {
     endGame('The invaders breached the last defense line.');
     return;
   }
-  if (lowest < LOSE_Y + 1.8) shake = Math.max(shake, 0.025);
+  if (closest > player.z - 3.5) shake = Math.max(shake, 0.025);
 
   bombTimer -= dt;
   if (bombTimer <= 0) {
     const cols = [...new Set(live.map((a) => a.col))];
     const col = cols[Math.floor(Math.random() * cols.length)];
     const choices = live.filter((a) => a.col === col);
-    /* Front of formation = lowest Y row */
-    const a = choices.reduce((best, cur) => (cur.y < best.y ? cur : best), choices[0]);
+    const a = choices.reduce((best, cur) => (cur.z > best.z ? cur : best), choices[0]);
     const mesh = makeBombMesh();
     bombRoot.add(mesh);
-    const vz = 3.625 + wave * 0.325;
-    const travelZ = Math.max(0.5, (PLAYER_Z + 0.5) - (a.z + 0.3));
     const bomb = {
       x: a.x,
-      y: a.y,
+      y: 0.35,
       z: a.z + 0.3,
       w: 0.15,
       h: 0.35,
       d: 0.15,
-      vz,
-      /* Drop toward player plane while flying +Z */
-      vy: -((a.y - 0.45) / (travelZ / vz)),
+      vz: 3.625 + wave * 0.325,
       mesh
     };
     mesh.position.set(bomb.x, bomb.y, bomb.z);
@@ -906,12 +797,11 @@ function update(dt) {
 
   for (const b of bombs) {
     b.z += b.vz * dt;
-    b.y += (b.vy || 0) * dt;
     b.mesh.position.set(b.x, b.y, b.z);
     faceCameraY(b.mesh);
   }
   bombs = bombs.filter((b) => {
-    if (b.z > PLAYER_Z + 2 || b.y < -1) {
+    if (b.z > PLAYER_Z + 2) {
       bombRoot.remove(b.mesh);
       return false;
     }
@@ -919,29 +809,30 @@ function update(dt) {
   });
 
   for (const b of bullets) {
-    if (b.dead) continue;
+    let hit = false;
     for (const a of aliens) {
-      if (a.alive && aabb3(b, a)) {
+      if (a.alive && aabbXZ(b, a)) {
         a.alive = false;
         a.mesh.visible = false;
-        b.dead = true;
+        hit = true;
         score += (5 - a.row) * 10 + 10;
-        burst(a.x, a.y, a.z, a.color, 15);
+        burst(a.x, 0.4, a.z, a.color, 15);
         shake = Math.max(shake, 0.12);
         tone(105 + Math.random() * 50, 0.16, 'sawtooth', 0.14, -75);
         break;
       }
     }
+    if (hit) b.z = FLEET_BACK_Z - 99;
   }
 
   for (const b of bombs) {
-    if (b.y < 1.75 && aabbXZ(b, player)) {
+    if (aabbXZ(b, player)) {
       b.z = PLAYER_Z + 99;
       loseLife();
     }
     for (const shield of barriers) {
       for (const block of shield) {
-        if (block.hp > 0 && aabb3(b, block)) {
+        if (block.hp > 0 && aabbXZ(b, block)) {
           block.hp--;
           updateBrick(block);
           b.z = PLAYER_Z + 99;
@@ -952,13 +843,12 @@ function update(dt) {
   }
 
   for (const b of bullets) {
-    if (b.dead) continue;
     for (const shield of barriers) {
       for (const block of shield) {
-        if (block.hp > 0 && aabb3(b, block)) {
+        if (block.hp > 0 && aabbXZ(b, block)) {
           block.hp--;
           updateBrick(block);
-          b.dead = true;
+          b.z = FLEET_BACK_Z - 99;
           break;
         }
       }
@@ -967,15 +857,9 @@ function update(dt) {
 
   for (const a of aliens) {
     if (!a.alive) continue;
-    /* Descent danger is Y: crush barriers under formation when low enough */
-    if (a.y - a.h / 2 > LOSE_Y + 0.85) continue;
     for (const shield of barriers) {
       for (const block of shield) {
-        if (
-          block.hp > 0 &&
-          a.x - a.w / 2 < block.x + block.w / 2 &&
-          a.x + a.w / 2 > block.x - block.w / 2
-        ) {
+        if (block.hp > 0 && aabbXZ(a, block)) {
           block.hp = 0;
           updateBrick(block);
         }
@@ -1032,13 +916,13 @@ function resize() {
 function updateCamera() {
   const targetX = player ? player.x : 0;
   const camX = targetX;
-  /* Lower cam + look mid-fleet: playfield sits higher with headroom above invaders */
-  const camY = 3.85;
-  const camZ = 8.15;
+  const camY = 5.4;
+  const camZ = 7.4;
   const sx = shake > 0 ? (Math.random() - 0.5) * shake * 0.45 : 0;
   const sy = shake > 0 ? (Math.random() - 0.5) * shake * 0.35 : 0;
   camera.position.set(camX + sx, camY + sy, camZ);
-  camera.lookAt(camX * 0.35, 3.35, -7.2);
+  /* Look toward fleet; eye target raised for human height */
+  camera.lookAt(camX * 0.35, 1.6, -6.5);
   playerRim.position.set(targetX, 1.6, 1.5);
 }
 
@@ -1047,11 +931,7 @@ function render() {
     const blink = player.invuln > 0 && Math.floor(player.invuln * 10) % 2 === 0;
     playerMesh.visible = !blink;
     playerMesh.position.set(player.x, 0, player.z);
-    /* Body yaw + gun pitch follow aimDir (gun local −Z) */
-    playerMesh.rotation.y = player.aimYaw;
-    if (playerMesh.userData.gun) {
-      playerMesh.userData.gun.rotation.x = -player.aimPitch;
-    }
+    faceCameraY(playerMesh);
   }
   updateCamera();
   renderer.render(scene, camera);
@@ -1068,22 +948,7 @@ function loop(now) {
 
 window.addEventListener('keydown', (e) => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  if (
-    [
-      'ArrowLeft',
-      'ArrowRight',
-      'ArrowUp',
-      'ArrowDown',
-      ' ',
-      'a',
-      'd',
-      'r',
-      'f',
-      'Shift'
-    ].includes(k)
-  ) {
-    e.preventDefault();
-  }
+  if (['ArrowLeft', 'ArrowRight', ' ', 'a', 'd', 'r', 'f', 'Shift'].includes(k)) e.preventDefault();
   if (e.repeat) return;
   keys.add(k);
   if (k === 'r') startGame();
