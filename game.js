@@ -179,7 +179,7 @@ const textures = {
 /* ---------- Mesh helpers ---------- */
 function makePlayerMesh() {
   /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u
-   * AD contrast pack (FINAL): dusty rose coat + lilac rim + gun rear plate */
+   * AD contrast pack (interim): dusty rose coat + lilac rim + gun rear plate */
   const g = new THREE.Group();
   const coatDeep = new THREE.MeshBasicMaterial({ color: 0x3a2438 }); /* legs */
   const coatMid = new THREE.MeshBasicMaterial({ color: 0x6b3a52 }); /* torso */
