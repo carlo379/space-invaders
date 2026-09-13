@@ -1,5 +1,5 @@
 /**
- * Scary Invaders — Three.js 3D arcade
+ * Scary Invaders — Three.js 3D arcade (FULL ART REDO: battleship + metal bunkers + 4 alien types)
  * Axes: X right, Y up, Z into void (fleet −Z, player ≈0, camera +Z)
  * Super Laser = formation COLUMN wipe (same col index), never a row.
  */
@@ -22,9 +22,10 @@ const COL_STEP = 1.65;
 const ROW_STEP = 1.125;
 const EDGE = 11.2;
 
-const alienColors = [0xd43c58, 0x9b56d4, 0x75d36e, 0xa83b82, 0xc5ba4f, 0xeb5268];
-const alienRowIds = ['crown', 'spider', 'watcher', 'stalker', 'batwing', 'worm'];
-const alienHex = ['#d43c58', '#9b56d4', '#75d36e', '#a83b82', '#c5ba4f', '#eb5268'];
+/* Four distinct Scary Invader types (cycle by row) */
+const ALIEN_TYPES = ['stalker', 'crab', 'tendril', 'skitterer'];
+const alienColors = [0x9b56d4, 0x75d36e, 0xa83b82, 0xc5ba4f];
+const alienHex = ['#9b56d4', '#75d36e', '#a83b82', '#c5ba4f'];
 
 const keys = new Set();
 let state = 'title';
@@ -150,155 +151,304 @@ function loadTex(path) {
 
 const textures = {
   bullet: loadTex('assets/bullet_player_00.png'),
-  bomb: loadTex('assets/bomb_alien_00.png'),
-  barrierFull: loadTex('assets/barrier_block_full.png'),
-  barrierCrack: loadTex('assets/barrier_block_crack.png'),
-  aliens: {
-    crown: loadTex('assets/alien_crown_idle_00.png'),
-    spider: loadTex('assets/alien_spider_idle_00.png'),
-    watcher: loadTex('assets/alien_watcher_idle_00.png'),
-    stalker: loadTex('assets/alien_stalker_idle_00.png'),
-    batwing: loadTex('assets/alien_batwing_idle_00.png'),
-    worm: loadTex('assets/alien_worm_idle_00.png')
-  }
+  bomb: loadTex('assets/bomb_alien_00.png')
 };
 
 /* ---------- Mesh helpers ---------- */
 function makePlayerMesh() {
-  /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u
-   * AD definition v2 (PROVISIONAL preview): stronger contrast + cam-facing detail */
+  /* Advanced battleship — void-navy hull, twin +Z thrusters, spinal cannon −Z
+   * Visual footprint ~1.4 × 0.6 × 2.0 (style-guide hitbox) */
   const g = new THREE.Group();
-  const legs = new THREE.MeshBasicMaterial({ color: 0x5c3a55 });
-  const torsoMat = new THREE.MeshBasicMaterial({ color: 0xa85678 });
-  const upper = new THREE.MeshBasicMaterial({ color: 0xc47898 });
-  const rim = new THREE.MeshBasicMaterial({ color: 0xf0b8d0 });
-  const hi = new THREE.MeshBasicMaterial({ color: 0xe8d0dc });
-  const sole = new THREE.MeshBasicMaterial({ color: 0xff9eb8 });
+  const hull = new THREE.MeshBasicMaterial({ color: 0x7a9aa8 });
+  const recess = new THREE.MeshBasicMaterial({ color: 0x1a1218 });
+  const highlight = new THREE.MeshBasicMaterial({ color: 0xe5ffff });
   const cyan = new THREE.MeshBasicMaterial({ color: 0x70eaff });
-  const ice = new THREE.MeshBasicMaterial({ color: 0xe5ffff });
-  const beam = new THREE.MeshBasicMaterial({ color: 0x5cecff });
-  const rearPlate = new THREE.MeshBasicMaterial({ color: 0xb8fbff });
+  const ice = new THREE.MeshBasicMaterial({ color: 0x5cecff });
+  const bloom = new THREE.MeshBasicMaterial({ color: 0xb8fbff });
+  const panel = new THREE.MeshBasicMaterial({ color: 0x5a7a88 });
 
-  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.16), legs);
-  legL.position.set(-0.11, 0.26, 0.02);
-  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.16), legs);
-  legR.position.set(0.11, 0.26, 0.02);
-  const soleL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), sole);
-  soleL.position.set(-0.11, 0.03, 0.1);
-  const soleR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), sole);
-  soleR.position.set(0.11, 0.03, 0.1);
+  const y0 = 0.32;
 
-  const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.26, 0.34), legs);
-  skirt.position.set(0, 0.55, 0.02);
+  /* Main hull */
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.28, 1.55), hull);
+  body.position.set(0, y0, 0.05);
+  const keel = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 1.7), recess);
+  keel.position.set(0, y0 - 0.16, 0);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.55), panel);
+  bridge.position.set(0, y0 + 0.2, 0.15);
+  const bridgeTop = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.32), highlight);
+  bridgeTop.position.set(0, y0 + 0.3, 0.12);
 
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.52, 0.3), torsoMat);
-  torso.position.set(0, 0.88, 0);
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.04), hi);
-  chest.position.set(0, 0.95, 0.16);
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.06, 0.06), legs);
-  belt.position.set(0, 0.7, 0.12);
-  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.04), hi);
-  buckle.position.set(0, 0.7, 0.17);
+  /* Side sponsons */
+  const sponL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.85), hull);
+  sponL.position.set(-0.58, y0 - 0.02, 0.1);
+  const sponR = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.85), hull);
+  sponR.position.set(0.58, y0 - 0.02, 0.1);
+  const finL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.55), panel);
+  finL.position.set(-0.72, y0 + 0.04, 0.25);
+  const finR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.55), panel);
+  finR.position.set(0.72, y0 + 0.04, 0.25);
 
-  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.16, 0.26), upper);
-  shoulders.position.set(0, 1.14, 0);
-  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.28, 0.12), legs);
-  pack.position.set(0, 1.05, 0.18);
+  /* Panel lines / greebles (cam-facing +Z detail) */
+  const seam1 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.02, 0.02), recess);
+  seam1.position.set(0, y0 + 0.12, 0.82);
+  const seam2 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.18, 1.2), recess);
+  seam2.position.set(0, y0, 0.05);
+  const ventL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.08), recess);
+  ventL.position.set(-0.28, y0 + 0.15, 0.78);
+  const ventR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.08), recess);
+  ventR.position.set(0.28, y0 + 0.15, 0.78);
+  const rivetGeo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+  const rivets = [];
+  for (const [rx, rz] of [[-0.4, 0.7], [0.4, 0.7], [-0.4, 0.4], [0.4, 0.4], [-0.4, 0.1], [0.4, 0.1]]) {
+    const rv = new THREE.Mesh(rivetGeo, highlight);
+    rv.position.set(rx, y0 + 0.15, rz);
+    rivets.push(rv);
+  }
 
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.32, 0.34), legs);
-  hood.position.set(0, 1.38, 0.02);
-  const hoodPeak = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.3), upper);
-  hoodPeak.position.set(0, 1.55, -0.02);
-  const hoodBrim = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.08), rim);
-  hoodBrim.position.set(0, 1.48, 0.18);
+  /* Twin rear thrusters facing +Z (camera) */
+  const thrusterHousing = (x) => {
+    const h = new THREE.Group();
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.22, 10), recess);
+    shell.rotation.x = Math.PI / 2;
+    shell.position.set(0, 0, 0);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.025, 6, 12), cyan);
+    ring.position.set(0, 0, 0.12);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.12, 8), bloom);
+    core.rotation.x = Math.PI / 2;
+    core.position.set(0, 0, 0.06);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), ice);
+    glow.position.set(0, 0, 0.18);
+    const plume = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), cyan);
+    plume.rotation.x = -Math.PI / 2;
+    plume.position.set(0, 0, 0.38);
+    h.add(shell, ring, core, glow, plume);
+    h.position.set(x, y0, 0.95);
+    return h;
+  };
+  const thrusterL = thrusterHousing(-0.32);
+  const thrusterR = thrusterHousing(0.32);
+  const thrusterLight = new THREE.PointLight(0x70eaff, 2.2, 6, 2);
+  thrusterLight.position.set(0, y0, 1.15);
 
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.05), beam);
-  visor.position.set(0, 1.36, -0.15);
-
-  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.42), torsoMat);
-  armL.position.set(-0.2, 0.96, -0.22);
-  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.42), torsoMat);
-  armR.position.set(0.2, 0.96, -0.22);
-  const gloveL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.04), hi);
-  gloveL.position.set(-0.2, 0.96, 0.02);
-  const gloveR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.04), hi);
-  gloveR.position.set(0.2, 0.96, 0.02);
-
-  const rimShoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.04), rim);
-  rimShoulderL.position.set(-0.2, 1.2, 0.15);
-  const rimShoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.04), rim);
-  rimShoulderR.position.set(0.2, 1.2, 0.15);
-  const rimHem = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.035, 0.04), rim);
-  rimHem.position.set(0, 0.66, 0.19);
-
-  const gunY = 0.98;
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.22), cyan);
-  stock.position.set(0, gunY, 0.02);
-  const tube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.25), cyan);
-  tube.position.set(0, gunY, -0.72);
-  const core = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.55), ice);
-  core.position.set(0, gunY, -0.55);
-  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.28), ice);
-  barrel.position.set(0, gunY, -1.42);
-  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.08), beam);
-  muzzle.position.set(0, gunY, -1.58);
-  const gunRear = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.36, 0.04), rearPlate);
-  gunRear.position.set(0, gunY, 0.18);
-  const finL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 0.28), beam);
-  finL.position.set(-0.3, gunY, 0.05);
-  const finR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 0.28), beam);
-  finR.position.set(0.3, gunY, 0.05);
-  const vent1 = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.025, 0.02), ice);
-  vent1.position.set(0, gunY + 0.08, 0.205);
-  const vent2 = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.025, 0.02), ice);
-  vent2.position.set(0, gunY, 0.205);
-  const vent3 = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.025, 0.02), ice);
-  vent3.position.set(0, gunY - 0.08, 0.205);
+  /* Spinal cannon along −Z */
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.35), panel);
+  stock.position.set(0, y0 + 0.02, -0.55);
+  const tube = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.95), cyan);
+  tube.position.set(0, y0 + 0.02, -1.05);
+  const coreGun = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.7), bloom);
+  coreGun.position.set(0, y0 + 0.02, -1.0);
+  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.22), ice);
+  barrel.position.set(0, y0 + 0.02, -1.55);
+  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.08), bloom);
+  muzzle.position.set(0, y0 + 0.02, -1.68);
+  const gunRailsL = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.8), recess);
+  gunRailsL.position.set(-0.12, y0 + 0.08, -1.05);
+  const gunRailsR = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.8), recess);
+  gunRailsR.position.set(0.12, y0 + 0.08, -1.05);
 
   g.add(
-    legL, legR, soleL, soleR, skirt, torso, chest, belt, buckle, shoulders, pack,
-    hood, hoodPeak, hoodBrim, visor, armL, armR, gloveL, gloveR,
-    rimShoulderL, rimShoulderR, rimHem,
-    stock, tube, core, barrel, muzzle, gunRear, finL, finR, vent1, vent2, vent3
+    body, keel, bridge, bridgeTop, sponL, sponR, finL, finR,
+    seam1, seam2, ventL, ventR, ...rivets,
+    thrusterL, thrusterR, thrusterLight,
+    stock, tube, coreGun, barrel, muzzle, gunRailsL, gunRailsR
   );
-  g.userData.kind = 'player';
-  g.userData.muzzleLocal = { x: 0, y: gunY, z: -1.58 };
+  g.userData.kind = 'battleship';
+  g.userData.muzzleLocal = { x: 0, y: y0 + 0.02, z: -1.68 };
+  g.userData.thrusterLight = thrusterLight;
   return g;
 }
 
-function makeAlienBillboard(rowId, color) {
+function mat(color, opts = {}) {
+  return new THREE.MeshBasicMaterial({ color, ...opts });
+}
+
+function makeAlienMesh(typeId, color) {
   const g = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({
-    map: textures.aliens[rowId],
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide
-  });
-  /* Authoring ~0.95 × 0.75 footprint; plane sized for readable silhouette */
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.75), mat);
-  plane.position.y = 0.375;
-  plane.name = 'yBillboard';
-  g.add(plane);
-  /* Soft emissive eye glow blob */
-  const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.08, 6, 6),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55 })
-  );
-  glow.position.set(0, 0.48, 0.05);
-  g.add(glow);
+  const flesh = mat(0x3a1830);
+  const armor = mat(0x2a1428);
+  const violet = mat(color);
+  const toxic = mat(0x75d36e);
+  const eyeGlow = mat(0xffeb7a);
+  const tooth = mat(0xe5ffff);
+
+  if (typeId === 'stalker') {
+    /* Tall thin toothed skeletal — purple eye */
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.55, 0.22), flesh);
+    torso.position.set(0, 0.45, 0);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.28, 0.28), armor);
+    head.position.set(0, 0.82, -0.02);
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.22), flesh);
+    jaw.position.set(0, 0.68, -0.12);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), violet);
+    eye.position.set(0, 0.86, -0.14);
+    const eyeCore = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 5), eyeGlow);
+    eyeCore.position.set(0, 0.86, -0.18);
+    for (const tx of [-0.08, 0, 0.08]) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.04), tooth);
+      t.position.set(tx, 0.64, -0.22);
+      g.add(t);
+    }
+    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.08), flesh);
+    armL.position.set(-0.22, 0.4, 0);
+    armL.rotation.z = 0.35;
+    const armR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.08), flesh);
+    armR.position.set(0.22, 0.4, 0);
+    armR.rotation.z = -0.35;
+    const clawL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.06), armor);
+    clawL.position.set(-0.28, 0.12, -0.05);
+    const clawR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.06), armor);
+    clawR.position.set(0.28, 0.12, -0.05);
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.35, 0.07), flesh);
+    legL.position.set(-0.1, 0.12, 0.02);
+    const legR = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.35, 0.07), flesh);
+    legR.position.set(0.1, 0.12, 0.02);
+    g.add(torso, head, jaw, eye, eyeCore, armL, armR, clawL, clawR, legL, legR);
+  } else if (typeId === 'crab') {
+    /* Wide armored shell — multi glow eyes */
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.28, 0.55), armor);
+    shell.position.set(0, 0.42, 0);
+    const dome = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.4), flesh);
+    dome.position.set(0, 0.58, 0);
+    const under = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.16, 0.35), flesh);
+    under.position.set(0, 0.22, 0);
+    for (const [ex, ey] of [[-0.18, 0.48], [0, 0.52], [0.18, 0.48], [-0.1, 0.4], [0.1, 0.4]]) {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.045, 5, 5), toxic);
+      e.position.set(ex, ey, -0.28);
+      g.add(e);
+    }
+    const pincerL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.35), armor);
+    pincerL.position.set(-0.48, 0.28, -0.15);
+    pincerL.rotation.y = 0.4;
+    const pincerR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.35), armor);
+    pincerR.position.set(0.48, 0.28, -0.15);
+    pincerR.rotation.y = -0.4;
+    for (const sx of [-0.3, -0.1, 0.1, 0.3]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.28), flesh);
+      leg.position.set(sx, 0.12, 0.1);
+      leg.rotation.x = 0.5;
+      g.add(leg);
+    }
+    g.add(shell, dome, under, pincerL, pincerR);
+  } else if (typeId === 'tendril') {
+    /* Floating sphere + tentacles — wrong purple eyes */
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 10), flesh);
+    core.position.set(0, 0.45, 0);
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), armor);
+    shell.position.set(0, 0.45, 0);
+    shell.scale.set(1, 0.85, 1);
+    for (const [ex, ey, ez] of [[0, 0.55, -0.28], [-0.16, 0.42, -0.22], [0.16, 0.42, -0.22], [0, 0.35, -0.26]]) {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 5), violet);
+      e.position.set(ex, ey, ez);
+      g.add(e);
+      const ec = new THREE.Mesh(new THREE.SphereGeometry(0.02, 4, 4), eyeGlow);
+      ec.position.set(ex, ey, ez - 0.04);
+      g.add(ec);
+    }
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      const tend = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.015, 0.55, 5), flesh);
+      tend.position.set(Math.cos(ang) * 0.18, 0.12, Math.sin(ang) * 0.12);
+      tend.rotation.z = Math.cos(ang) * 0.5;
+      tend.rotation.x = 0.4 + Math.sin(ang) * 0.3;
+      g.add(tend);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 4, 4), violet);
+      tip.position.set(Math.cos(ang) * 0.22, -0.12, Math.sin(ang) * 0.15);
+      g.add(tip);
+    }
+    g.add(core, shell);
+  } else {
+    /* Winged skitterer — bat/insect wings, purple eye */
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.35, 0.28), flesh);
+    body.position.set(0, 0.4, 0);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.2), armor);
+    head.position.set(0, 0.62, -0.05);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), violet);
+    eye.position.set(0, 0.64, -0.14);
+    const eyeCore = new THREE.Mesh(new THREE.SphereGeometry(0.028, 4, 4), eyeGlow);
+    eyeCore.position.set(0, 0.64, -0.18);
+    const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.35), armor);
+    wingL.position.set(-0.4, 0.5, 0.05);
+    wingL.rotation.z = 0.35;
+    wingL.rotation.y = 0.25;
+    const wingR = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.35), armor);
+    wingR.position.set(0.4, 0.5, 0.05);
+    wingR.rotation.z = -0.35;
+    wingR.rotation.y = -0.25;
+    const wingTipL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.15), violet);
+    wingTipL.position.set(-0.68, 0.55, 0.08);
+    const wingTipR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.15), violet);
+    wingTipR.position.set(0.68, 0.55, 0.08);
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.05), flesh);
+    legL.position.set(-0.08, 0.15, 0);
+    const legR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.05), flesh);
+    legR.position.set(0.08, 0.15, 0);
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 4), armor);
+    spike.position.set(0, 0.78, 0);
+    g.add(body, head, eye, eyeCore, wingL, wingR, wingTipL, wingTipR, legL, legR, spike);
+  }
+
+  g.userData.kind = 'alien';
+  g.userData.typeId = typeId;
   return g;
 }
 
-function makeBrick(hp) {
-  const mat = new THREE.MeshBasicMaterial({
-    map: hp === 1 ? textures.barrierCrack : textures.barrierFull,
-    color: 0xb5ef68,
-    transparent: true,
-    opacity: hp === 1 ? 0.85 : 1
-  });
-  mat.map = hp === 1 ? textures.barrierCrack : textures.barrierFull;
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), mat);
-  return mesh;
+function makeBarrierBlock(hp) {
+  /* Metal bunker plate with lime energy fissures — not flat green cube / not rock */
+  const g = new THREE.Group();
+  const metal = mat(0x4a5560);
+  const dark = mat(0x1a1218);
+  const rim = mat(0x7a9aa8);
+  const fissure = mat(0xb5ef68);
+
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.18), metal);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.04), dark);
+  back.position.z = 0.1;
+  const boltTL = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.04), rim);
+  boltTL.position.set(-0.07, 0.07, -0.08);
+  const boltTR = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.04), rim);
+  boltTR.position.set(0.07, 0.07, -0.08);
+  const boltBL = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.04), rim);
+  boltBL.position.set(-0.07, -0.07, -0.08);
+  const boltBR = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.04), rim);
+  boltBR.position.set(0.07, -0.07, -0.08);
+
+  /* Jagged lime crack strips on front (−Z toward fleet / cam sees + face) */
+  const crackA = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.03), fissure);
+  crackA.position.set(-0.02, 0, -0.1);
+  crackA.rotation.z = 0.25;
+  const crackB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.03), fissure);
+  crackB.position.set(0.02, 0.04, -0.1);
+  crackB.rotation.z = -0.4;
+  const crackC = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.03), fissure);
+  crackC.position.set(0.01, -0.05, -0.1);
+  crackC.rotation.z = 0.55;
+
+  g.add(plate, back, boltTL, boltTR, boltBL, boltBR, crackA, crackB, crackC);
+  g.userData.fissures = [crackA, crackB, crackC];
+  g.userData.plate = plate;
+  applyBarrierHpLook(g, hp);
+  return g;
+}
+
+function applyBarrierHpLook(mesh, hp) {
+  const fissures = mesh.userData.fissures || [];
+  const plate = mesh.userData.plate;
+  if (hp >= 2) {
+    for (const f of fissures) {
+      f.visible = true;
+      f.material.color.setHex(0xb5ef68);
+      f.scale.set(1, 1, 1);
+    }
+    if (plate) plate.material.color.setHex(0x4a5560);
+  } else if (hp === 1) {
+    for (const f of fissures) {
+      f.visible = true;
+      f.material.color.setHex(0xffeb7a);
+      f.scale.set(1.35, 1.35, 1.2);
+    }
+    if (plate) plate.material.color.setHex(0x3a3038);
+  }
 }
 
 function makeBulletMesh() {
@@ -446,9 +596,9 @@ function makePlayer() {
     x: 0,
     y: 0,
     z: PLAYER_Z,
-    w: 0.6,
-    h: 1.6,
-    d: 0.7,
+    w: 1.4,
+    h: 0.6,
+    d: 2.0,
     speed: 9.75,
     cooldown: 0,
     invuln: 0
@@ -463,9 +613,10 @@ function makeAliens() {
   const startX = -((cols - 1) * COL_STEP) / 2;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const id = alienRowIds[r % alienRowIds.length];
+      /* Cycle 4 distinct types by row so silhouettes vary across the fleet */
+      const id = ALIEN_TYPES[r % ALIEN_TYPES.length];
       const color = alienColors[r % alienColors.length];
-      const mesh = makeAlienBillboard(id, color);
+      const mesh = makeAlienMesh(id, color);
       alienRoot.add(mesh);
       const x = startX + c * COL_STEP;
       const z = FLEET_BACK_Z + r * ROW_STEP;
@@ -503,7 +654,7 @@ function makeBarriers() {
         if (yy === 0 && (xx < 2 || xx > 5)) continue;
         if (yy === 3 && (xx === 3 || xx === 4)) continue;
         const hp = 2;
-        const mesh = makeBrick(hp);
+        const mesh = makeBarrierBlock(hp);
         const x = bx - 0.7 + xx * 0.225;
         const y = 0.1 + yy * 0.22;
         const z = BARRIER_Z;
@@ -614,7 +765,7 @@ function shoot() {
   initAudio();
   const mesh = makeBulletMesh();
   bulletRoot.add(mesh);
-  const muzzle = playerMesh?.userData?.muzzleLocal || { x: 0, y: 0.98, z: -1.58 };
+  const muzzle = playerMesh?.userData?.muzzleLocal || { x: 0, y: 0.34, z: -1.68 };
   const b = {
     x: player.x + muzzle.x,
     y: muzzle.y,
@@ -941,9 +1092,7 @@ function update(dt) {
 
 function updateBrick(block) {
   if (block.hp <= 0) return;
-  block.mesh.material.map = block.hp === 1 ? textures.barrierCrack : textures.barrierFull;
-  block.mesh.material.opacity = block.hp === 1 ? 0.85 : 1;
-  block.mesh.material.needsUpdate = true;
+  applyBarrierHpLook(block.mesh, block.hp);
 }
 
 function resize() {
@@ -963,9 +1112,9 @@ function updateCamera() {
   const sx = shake > 0 ? (Math.random() - 0.5) * shake * 0.45 : 0;
   const sy = shake > 0 ? (Math.random() - 0.5) * shake * 0.35 : 0;
   camera.position.set(camX + sx, camY + sy, camZ);
-  /* Look toward fleet; eye target raised for human height */
-  camera.lookAt(camX * 0.35, 1.6, -6.5);
-  playerRim.position.set(targetX, 1.6, 1.5);
+  /* Look toward fleet over battleship spine */
+  camera.lookAt(camX * 0.35, 1.1, -6.5);
+  playerRim.position.set(targetX, 0.9, 1.5);
 }
 
 function render() {
