@@ -4,7 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scary Invaders</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
 <body>
   <main class="arcade-shell">
@@ -19,7 +29,7 @@
       <div class="hud-block right"><span class="label">LIVES</span><strong id="lives">♥ ♥ ♥</strong></div>
     </section>
     <div class="game-frame">
-      <canvas id="game" width="960" height="640" aria-label="Scary Invaders game canvas"></canvas>
+      <canvas id="game" aria-label="Scary Invaders 3D game canvas"></canvas>
       <div id="overlay" class="overlay visible">
         <div class="overlay-card">
           <div class="eyebrow">// UNKNOWN SIGNAL //</div>
@@ -35,9 +45,9 @@
       <div><kbd>SPACE</kbd><span>FIRE</span></div>
       <div><kbd>SHIFT</kbd> / <kbd>F</kbd><span>SUPER LASER</span></div>
       <div><kbd>R</kbd><span>RESTART</span></div>
-      <div class="hint">DO NOT LET THEM REACH YOU.</div>
+      <div class="hint">DO NOT LET THEM REACH YOU. · 3D VOID</div>
     </footer>
   </main>
-  <script src="game.js?v=scary-art1"></script>
+  <script type="module" src="game.js"></script>
 </body>
 </html>
