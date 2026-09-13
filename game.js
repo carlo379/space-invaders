@@ -24,8 +24,8 @@ const EDGE = 11.2;
 
 /* Four distinct Scary Invader types (cycle by row) */
 const ALIEN_TYPES = ['stalker', 'crab', 'tendril', 'skitterer'];
-const alienColors = [0x9b56d4, 0x75d36e, 0xa83b82, 0xc5ba4f];
-const alienHex = ['#9b56d4', '#75d36e', '#a83b82', '#c5ba4f'];
+const alienColors = [0x9b56d4, 0x9b56d4, 0xa83b82, 0xc5ba4f];
+const alienHex = ['#9b56d4', '#9b56d4', '#a83b82', '#c5ba4f'];
 
 const keys = new Set();
 let state = 'title';
@@ -313,7 +313,7 @@ function makeAlienMesh(typeId, color) {
     const under = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.16, 0.35), flesh);
     under.position.set(0, 0.22, 0);
     for (const [ex, ey] of [[-0.18, 0.48], [0, 0.52], [0.18, 0.48], [-0.1, 0.4], [0.1, 0.4]]) {
-      const e = new THREE.Mesh(new THREE.SphereGeometry(0.045, 5, 5), toxic);
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.045, 5, 5), violet);
       e.position.set(ex, ey, -0.28);
       g.add(e);
     }
