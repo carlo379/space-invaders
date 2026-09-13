@@ -169,30 +169,20 @@ function makePlayerMesh() {
   const g = new THREE.Group();
   const cyan = new THREE.MeshBasicMaterial({ color: 0x70eaff });
   const ice = new THREE.MeshBasicMaterial({ color: 0xe5ffff });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.18, 0.55), cyan);
+  /* Visual width capped ~1.1u to match locked authoring / hitbox footprint */
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.18, 0.55), cyan);
   body.position.set(0, 0.12, 0);
-  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.45), ice);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.14, 0.45), ice);
   nose.position.set(0, 0.16, -0.35);
-  const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 0.55), cyan);
-  wingL.position.set(-0.48, 0.1, 0.05);
-  wingL.rotation.z = 0.25;
-  const wingR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 0.55), cyan);
-  wingR.position.set(0.48, 0.1, 0.05);
-  wingR.rotation.z = -0.25;
-  const core = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.22), ice);
+  const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.5), cyan);
+  wingL.position.set(-0.38, 0.1, 0.05);
+  wingL.rotation.z = 0.22;
+  const wingR = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.5), cyan);
+  wingR.position.set(0.38, 0.1, 0.05);
+  wingR.rotation.z = -0.22;
+  const core = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.2), ice);
   core.position.set(0, 0.28, 0.05);
   g.add(body, nose, wingL, wingR, core);
-  /* Optional billboard accent behind mesh for brand sprite */
-  const spriteMat = new THREE.MeshBasicMaterial({
-    map: textures.player,
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide
-  });
-  const bill = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8), spriteMat);
-  bill.position.set(0, 0.45, 0.05);
-  bill.name = 'yBillboard';
-  g.add(bill);
   g.userData.kind = 'player';
   return g;
 }
