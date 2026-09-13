@@ -9,6 +9,36 @@ let state = 'title', score = 0, lives = 3, wave = 1, superAmmo = 3, lastTime = 0
 let player, aliens = [], bullets = [], bombs = [], particles = [], barriers = [], fleet = null, bombTimer = 0, elapsed = 0, shake = 0, superBeam = null;
 let audioContext = null, audioMaster = null, drone = null;
 const alienColors = ['#d43c58','#9b56d4','#75d36e','#a83b82','#c5ba4f','#eb5268'];
+const alienRowIds = ['crown','spider','watcher','stalker','batwing','worm'];
+function loadSprite(src) {
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+const sprites = {
+  player: loadSprite('assets/player_idle_00.png'),
+  bullet: loadSprite('assets/bullet_player_00.png'),
+  bomb: loadSprite('assets/bomb_alien_00.png'),
+  barrierFull: loadSprite('assets/barrier_block_full.png'),
+  barrierCrack: loadSprite('assets/barrier_block_crack.png'),
+  aliens: {
+    crown: loadSprite('assets/alien_crown_idle_00.png'),
+    spider: loadSprite('assets/alien_spider_idle_00.png'),
+    watcher: loadSprite('assets/alien_watcher_idle_00.png'),
+    stalker: loadSprite('assets/alien_stalker_idle_00.png'),
+    batwing: loadSprite('assets/alien_batwing_idle_00.png'),
+    worm: loadSprite('assets/alien_worm_idle_00.png')
+  }
+};
+function spriteReady(img) { return img && img.complete && img.naturalWidth > 0; }
+function drawSprite(img, x, y) {
+  if (!spriteReady(img)) return false;
+  const prev = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, Math.round(x), Math.round(y));
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
 const clamp = (n,min,max) => Math.max(min, Math.min(max,n));
 function pad(n,len=6) { return String(n).padStart(len,'0'); }
 function updateHud() { scoreEl.textContent=pad(score); waveEl.textContent=String(wave).padStart(2,'0'); livesEl.textContent='♥ '.repeat(Math.max(0,lives)).trim() || '—'; superAmmoEl.textContent=String(superAmmo); }
@@ -86,40 +116,19 @@ function update(dt) {
   barriers.forEach(s=>{for(let i=s.length-1;i>=0;i--)if(s[i].hp<=0)s.splice(i,1);});
   particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=70*dt;p.life-=dt;});particles=particles.filter(p=>p.life>0);updateHud();
 }
-function polygon(points) { ctx.beginPath(); points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill(); }
-function eye(x,y,w,h,color='#ffeb7a') { ctx.fillStyle='#050207';ctx.fillRect(x,y,w,h);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.fillRect(x+1,y+1,Math.max(2,w-2),Math.max(2,h-2));ctx.shadowBlur=0; }
-function tooth(x,y,flip=1) { ctx.fillStyle='#f5e0ae';polygon([[x,y],[x+4,y],[x+2,y+5*flip]]); }
 function drawAlien(a) {
-  const twitch=Math.sin(elapsed*13+a.phase)*1.25, sway=Math.sin(elapsed*2.8+a.phase)*2, blink=(Math.sin(elapsed*2.1+a.phase*4)>0.94), jaw=Math.sin(elapsed*19+a.phase)>0.35;
-  ctx.save();ctx.translate(Math.round(a.x+twitch),Math.round(a.y+sway));ctx.shadowColor=a.color;ctx.shadowBlur=9+Math.max(0,fleet.impact*10);ctx.fillStyle=a.color;
-  if(a.row===0){ // crowned skulls
-    polygon([[7,9],[7,4],[12,6],[16,0],[20,6],[26,3],[31,9],[35,12],[31,24],[25,27],[13,27],[6,23],[2,14]]);
-    ctx.fillStyle='#260812';ctx.fillRect(9,16,20,8);eye(10,10,7,4,'#ff2e56');eye(21,9,7,5,'#ff9b55');
-    ctx.fillStyle='#f1d3ad';for(let x=11;x<29;x+=6)tooth(x,17, jaw?1:-1);
-    ctx.fillStyle='#050207';ctx.fillRect(3,12,4,3);ctx.fillRect(31,13,4,3);
-  } else if(a.row===1){ // spider/cephalopod
-    ctx.fillStyle=a.color;polygon([[5,7],[14,3],[23,5],[31,10],[29,20],[22,23],[11,22],[4,17]]);
-    ctx.strokeStyle=a.color;ctx.lineWidth=3;for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(9+i*7,20);ctx.quadraticCurveTo(7+i*7,26+sway,3+i*9,30);ctx.stroke();}
-    eye(10,9,6,5,'#d9ff83');eye(22,10,5,4,'#ff3c74');ctx.fillStyle='#080308';ctx.fillRect(14,16,11,3);tooth(16,17,1);tooth(21,17,-1);
-  } else if(a.row===2){ // one huge watcher eye
-    polygon([[2,14],[8,6],[17,3],[29,6],[36,14],[30,24],[20,27],[9,23]]);
-    ctx.fillStyle='#100719';ctx.beginPath();ctx.ellipse(19,13,10,8,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ff314e';ctx.shadowColor='#ff314e';ctx.shadowBlur=12;ctx.beginPath();ctx.ellipse(19,13,4,7,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
-    ctx.strokeStyle='#e0b1d6';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(5,27);ctx.lineTo(10,22);ctx.lineTo(14,28);ctx.lineTo(19,23);ctx.lineTo(24,28);ctx.lineTo(30,22);ctx.stroke();
-  } else if(a.row===3){ // crooked tall stalker
-    polygon([[10,3],[28,5],[33,12],[28,19],[31,27],[25,24],[20,31],[16,23],[8,27],[11,18],[3,14]]);
-    eye(11,10,6,3,'#c4ff71');eye(23,11,7,3,'#ff395e');ctx.fillStyle='#09030c';ctx.fillRect(14,16,13,4);if(jaw){tooth(15,17,1);tooth(21,17,-1);}
-    ctx.fillStyle=a.color;ctx.fillRect(1,19,5,9);ctx.fillRect(30,18,5,10);
-  } else if(a.row===4) { // infected batwing parasite
-    polygon([[1,12],[8,9],[12,3],[18,8],[25,3],[29,9],[37,12],[30,18],[28,27],[20,23],[12,28],[10,19]]);
-    ctx.fillStyle='#150612';ctx.fillRect(10,11,19,10);eye(12,12,5,5,'#faff91');eye(23,13,5,5,'#faff91');
-    ctx.fillStyle='#f5e0ae';tooth(14,19,1);tooth(19,19,-1);tooth(24,19,1);
-  } else { // ribbed worm with a split skull
-    ctx.fillStyle=a.color;polygon([[4,10],[10,5],[17,7],[20,2],[24,7],[32,5],[36,12],[31,19],[34,27],[26,24],[19,31],[14,24],[5,28],[8,19]]);
-    ctx.fillStyle='#17050f';ctx.fillRect(12,10,16,12);eye(14,11,4,6,'#ffdf5b');eye(23,11,4,6,'#ff3e63');
-    ctx.strokeStyle='#f0c8d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(16,21);ctx.lineTo(20,24);ctx.lineTo(24,21);ctx.stroke();
-    ctx.fillStyle=a.color;ctx.fillRect(1,14,5,12);ctx.fillRect(32,14,5,12);
+  const twitch=Math.sin(elapsed*13+a.phase)*1.25, sway=Math.sin(elapsed*2.8+a.phase)*2;
+  const id=alienRowIds[a.row%alienRowIds.length];
+  const img=sprites.aliens[id];
+  // Bitmap 40×32, hitbox 38×30 — bottom-centre pivot (1px x / 2px y pad)
+  ctx.save();
+  ctx.shadowColor=a.color;
+  ctx.shadowBlur=9+Math.max(0,fleet.impact*10);
+  if(!drawSprite(img, a.x-1+twitch, a.y-2+sway)){
+    ctx.fillStyle=a.color;
+    ctx.fillRect(Math.round(a.x+twitch),Math.round(a.y+sway),a.w,a.h);
   }
-  if(blink){ctx.fillStyle=a.color;ctx.fillRect(9,10,20,5);}ctx.restore();
+  ctx.restore();
 }
 function drawSuperBeam() {
   if(!superBeam) return;
@@ -133,15 +142,66 @@ function drawSuperBeam() {
   ctx.fillStyle='#fff';ctx.shadowBlur=8;ctx.fillRect(superBeam.x-2,beamTop,4,player.y-beamTop);
   ctx.restore();
 }
-function drawPlayer() { if(player.invuln>0&&Math.floor(player.invuln*10)%2===0)return;ctx.save();ctx.translate(Math.round(player.x),Math.round(player.y));ctx.fillStyle='#70eaff';ctx.shadowColor='#70eaff';ctx.shadowBlur=14;ctx.fillRect(19,0,6,5);ctx.fillRect(15,5,14,5);ctx.fillRect(10,10,24,6);ctx.fillRect(4,16,36,6);ctx.fillRect(0,22,44,3);ctx.fillStyle='#e5ffff';ctx.fillRect(20,5,4,10);ctx.restore(); }
+function drawPlayer() {
+  if(player.invuln>0&&Math.floor(player.invuln*10)%2===0)return;
+  ctx.save();
+  ctx.shadowColor='#70eaff';
+  ctx.shadowBlur=14;
+  // Bitmap 48×32, hitbox 44×25 — bottom-centre pivot (2px x / 7px y pad)
+  if(!drawSprite(sprites.player, player.x-2, player.y-7)){
+    ctx.fillStyle='#70eaff';
+    ctx.fillRect(Math.round(player.x),Math.round(player.y),player.w,player.h);
+  }
+  ctx.restore();
+}
 function draw() { ctx.clearRect(0,0,W,H);ctx.save();if(shake>0)ctx.translate((Math.random()-.5)*shake*18,(Math.random()-.5)*shake*14);ctx.fillStyle='#020207';ctx.fillRect(0,0,W,H);
   const haze=ctx.createRadialGradient(W*.5,H*.55,50,W*.5,H*.55,500);haze.addColorStop(0,'rgba(65,12,52,.24)');haze.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=haze;ctx.fillRect(0,0,W,H);
   ctx.fillStyle='#b6a4ff';for(let i=0;i<80;i++){const x=(i*137)%W,y=(i*83+23)%H;ctx.globalAlpha=.16+((i*7)%6)/16;ctx.fillRect(x,y,1+(i%3===0),1+(i%5===0));}ctx.globalAlpha=1;
   ctx.strokeStyle='#3c183b';ctx.setLineDash([2,10]);ctx.beginPath();ctx.moveTo(0,H-34);ctx.lineTo(W,H-34);ctx.stroke();ctx.setLineDash([]);
-  aliens.forEach(a=>{if(a.alive)drawAlien(a);});drawSuperBeam();ctx.fillStyle='#b5ef68';ctx.shadowColor='#b5ef68';ctx.shadowBlur=8;barriers.forEach(s=>s.forEach(b=>{ctx.globalAlpha=b.hp===1?.42:1;ctx.fillRect(b.x,b.y,b.w,b.h);}));ctx.globalAlpha=1;ctx.shadowBlur=0;
-  drawPlayer();ctx.fillStyle='#fff';ctx.shadowColor='#fff';ctx.shadowBlur=10;bullets.forEach(b=>ctx.fillRect(b.x,b.y,b.w,b.h));ctx.fillStyle='#ff416d';ctx.shadowColor='#ff416d';bombs.forEach(b=>{ctx.fillRect(b.x,b.y,b.w,b.h);ctx.fillRect(b.x-3,b.y+5,b.w+6,3);});ctx.shadowBlur=0;
+  aliens.forEach(a=>{if(a.alive)drawAlien(a);});drawSuperBeam();
+  barriers.forEach(s=>s.forEach(b=>{
+    const img=b.hp===1?sprites.barrierCrack:sprites.barrierFull;
+    ctx.save();
+    ctx.shadowColor='#b5ef68';
+    ctx.shadowBlur=8;
+    ctx.globalAlpha=b.hp===1?.85:1;
+    if(!drawSprite(img, b.x, b.y)){
+      ctx.fillStyle='#b5ef68';
+      ctx.globalAlpha=b.hp===1?.42:1;
+      ctx.fillRect(b.x,b.y,b.w,b.h);
+    }
+    ctx.restore();
+  }));
+  drawPlayer();
+  bullets.forEach(b=>{
+    ctx.save();
+    ctx.shadowColor='#fff';
+    ctx.shadowBlur=10;
+    if(!drawSprite(sprites.bullet, b.x, b.y)){
+      ctx.fillStyle='#fff';
+      ctx.fillRect(b.x,b.y,b.w,b.h);
+    }
+    ctx.restore();
+  });
+  bombs.forEach(b=>{
+    ctx.save();
+    ctx.shadowColor='#ff416d';
+    ctx.shadowBlur=10;
+    // Bitmap 8×16, hitbox 5×13 — top-centre align
+    if(!drawSprite(sprites.bomb, b.x+(b.w-8)/2, b.y)){
+      ctx.fillStyle='#ff416d';
+      ctx.fillRect(b.x,b.y,b.w,b.h);
+      ctx.fillRect(b.x-3,b.y+5,b.w+6,3);
+    }
+    ctx.restore();
+  });
   particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);});ctx.globalAlpha=1;ctx.restore(); }
 function loop(now) { const dt=Math.min(.033,(now-lastTime)/1000);lastTime=now;if(state==='playing')update(dt);draw();if(state==='playing')animationId=requestAnimationFrame(loop); }
 window.addEventListener('keydown',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;if(['ArrowLeft','ArrowRight',' ','a','d','r','f','Shift'].includes(k))e.preventDefault();if(e.repeat)return;keys.add(k);if(k==='r')startGame();if((k==='Shift'||k==='f')&&state==='playing')fireSuperLaser();if((k===' '||k==='Spacebar')&&state!=='playing')startGame();});
 window.addEventListener('keyup',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;keys.delete(k);});
 startButton.addEventListener('click',startGame);resetGame();draw();
+// Redraw once sprites finish loading (file:// / static server relative paths)
+Object.values(sprites).forEach(v=>{
+  if(v && v.addEventListener) v.addEventListener('load',()=>{ if(state!=='playing') draw(); });
+  else if(v && typeof v==='object') Object.values(v).forEach(img=>img.addEventListener('load',()=>{ if(state!=='playing') draw(); }));
+});
