@@ -67,7 +67,7 @@ scene.background = new THREE.Color(0x020207);
 scene.fog = new THREE.FogExp2(0x020207, 0.038);
 
 const camera = new THREE.PerspectiveCamera(52, 3 / 2, 0.1, 120);
-camera.position.set(0, 5.2, 7.4);
+camera.position.set(0, 5.4, 7.4);
 
 const root = new THREE.Group();
 scene.add(root);
@@ -85,7 +85,7 @@ keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 scene.add(new THREE.AmbientLight(0x1a1020, 0.35));
 const playerRim = new THREE.PointLight(0x5cecff, 1.2, 14, 2);
-playerRim.position.set(0, 1.2, 1.5);
+playerRim.position.set(0, 1.6, 1.5);
 scene.add(playerRim);
 
 /* Ground contact strip */
@@ -149,7 +149,6 @@ function loadTex(path) {
 }
 
 const textures = {
-  player: loadTex('assets/player_idle_00.png'),
   bullet: loadTex('assets/bullet_player_00.png'),
   bomb: loadTex('assets/bomb_alien_00.png'),
   barrierFull: loadTex('assets/barrier_block_full.png'),
@@ -166,24 +165,62 @@ const textures = {
 
 /* ---------- Mesh helpers ---------- */
 function makePlayerMesh() {
+  /* Low-poly human + oversized ice-cyan cannon; feet at Y=0, height 1.6u */
   const g = new THREE.Group();
+  const coatDeep = new THREE.MeshBasicMaterial({ color: 0x05050c });
+  const coatMid = new THREE.MeshBasicMaterial({ color: 0x0b0b18 });
+  const coatAccent = new THREE.MeshBasicMaterial({ color: 0x17050f });
   const cyan = new THREE.MeshBasicMaterial({ color: 0x70eaff });
   const ice = new THREE.MeshBasicMaterial({ color: 0xe5ffff });
-  /* Visual width capped ~1.1u to match locked authoring / hitbox footprint */
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.18, 0.55), cyan);
-  body.position.set(0, 0.12, 0);
-  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.14, 0.45), ice);
-  nose.position.set(0, 0.16, -0.35);
-  const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.5), cyan);
-  wingL.position.set(-0.38, 0.1, 0.05);
-  wingL.rotation.z = 0.22;
-  const wingR = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.5), cyan);
-  wingR.position.set(0.38, 0.1, 0.05);
-  wingR.rotation.z = -0.22;
-  const core = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.2), ice);
-  core.position.set(0, 0.28, 0.05);
-  g.add(body, nose, wingL, wingR, core);
+  const beam = new THREE.MeshBasicMaterial({ color: 0x5cecff });
+
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.16), coatDeep);
+  legL.position.set(-0.11, 0.26, 0.02);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.16), coatDeep);
+  legR.position.set(0.11, 0.26, 0.02);
+
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.26, 0.34), coatDeep);
+  skirt.position.set(0, 0.55, 0.02);
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.52, 0.3), coatMid);
+  torso.position.set(0, 0.88, 0);
+
+  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.16, 0.26), coatAccent);
+  shoulders.position.set(0, 1.14, 0);
+
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.3, 0.32), coatDeep);
+  hood.position.set(0, 1.38, 0.02);
+  const hoodPeak = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.28), coatAccent);
+  hoodPeak.position.set(0, 1.55, -0.02);
+
+  /* Minimal visor slit glow */
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.05), beam);
+  visor.position.set(0, 1.36, -0.15);
+
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.42), coatMid);
+  armL.position.set(-0.2, 0.96, -0.22);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.42), coatMid);
+  armR.position.set(0.2, 0.96, -0.22);
+
+  /* Cannon ~1.6u along −Z, held at chest height */
+  const gunY = 0.98;
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.22), cyan);
+  stock.position.set(0, gunY, 0.02);
+  const tube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.25), cyan);
+  tube.position.set(0, gunY, -0.72);
+  const core = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.55), ice);
+  core.position.set(0, gunY, -0.55);
+  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.28), ice);
+  barrel.position.set(0, gunY, -1.42);
+  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.08), beam);
+  muzzle.position.set(0, gunY, -1.58);
+
+  g.add(
+    legL, legR, skirt, torso, shoulders, hood, hoodPeak, visor,
+    armL, armR, stock, tube, core, barrel, muzzle
+  );
   g.userData.kind = 'player';
+  g.userData.muzzleLocal = { x: 0, y: gunY, z: -1.58 };
   return g;
 }
 
@@ -367,9 +404,9 @@ function makePlayer() {
     x: 0,
     y: 0,
     z: PLAYER_Z,
-    w: 1.1,
-    h: 0.35,
-    d: 0.9,
+    w: 0.6,
+    h: 1.6,
+    d: 0.7,
     speed: 9.75,
     cooldown: 0,
     invuln: 0
@@ -535,10 +572,11 @@ function shoot() {
   initAudio();
   const mesh = makeBulletMesh();
   bulletRoot.add(mesh);
+  const muzzle = playerMesh?.userData?.muzzleLocal || { x: 0, y: 0.98, z: -1.58 };
   const b = {
-    x: player.x,
-    y: 0.35,
-    z: player.z - 0.5,
+    x: player.x + muzzle.x,
+    y: muzzle.y,
+    z: player.z + muzzle.z,
     w: 0.1,
     h: 0.1,
     d: 0.4,
@@ -569,7 +607,7 @@ function fireSuperLaser() {
   const targetCol = anchor.col;
   const targets = live.filter((a) => a.col === targetCol);
   superAmmo--;
-  const beamX = anchor.x;
+  const beamX = player.x; /* weapon / player X; wipe still by a.col */
   const beamZ = (Math.min(...targets.map((t) => t.z)) + Math.max(...targets.map((t) => t.z))) / 2;
   superBeam = { col: targetCol, x: beamX, z: beamZ, life: 0.62, max: 0.62 };
   if (beamMesh) scene.remove(beamMesh);
@@ -684,7 +722,7 @@ function update(dt) {
 
   if (keys.has('ArrowLeft') || keys.has('a')) player.x -= player.speed * dt;
   if (keys.has('ArrowRight') || keys.has('d')) player.x += player.speed * dt;
-  player.x = clamp(player.x, -EDGE + 0.6, EDGE - 0.6);
+  player.x = clamp(player.x, -EDGE + player.w / 2, EDGE - player.w / 2);
 
   if (keys.has(' ') || keys.has('Spacebar')) shoot();
 
@@ -878,14 +916,14 @@ function resize() {
 function updateCamera() {
   const targetX = player ? player.x : 0;
   const camX = targetX;
-  const camY = 5.2;
+  const camY = 5.4;
   const camZ = 7.4;
   const sx = shake > 0 ? (Math.random() - 0.5) * shake * 0.45 : 0;
   const sy = shake > 0 ? (Math.random() - 0.5) * shake * 0.35 : 0;
   camera.position.set(camX + sx, camY + sy, camZ);
-  /* Look toward fleet with slight bias to formation center */
-  camera.lookAt(camX * 0.35, 1.2, -6.5);
-  playerRim.position.set(targetX, 1.2, 1.5);
+  /* Look toward fleet; eye target raised for human height */
+  camera.lookAt(camX * 0.35, 1.6, -6.5);
+  playerRim.position.set(targetX, 1.6, 1.5);
 }
 
 function render() {

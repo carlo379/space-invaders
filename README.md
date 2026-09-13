@@ -16,7 +16,7 @@ Then open [http://127.0.0.1:8765/](http://127.0.0.1:8765/) in Chrome.
 
 | Asset | Form |
 |-------|------|
-| Player ship | Low-poly **mesh** (cyan chevron) + optional Y-billboard accent |
+| Player ship | Low-poly **mesh** (hooded human with cyan cannon) + optional Y-billboard accent |
 | Six alien types | **Y-axis billboards** (`NearestFilter` PNGs from `assets/`) |
 | Barriers | **Mesh** 0.2 cubes with full/crack textures |
 | Bullets / bombs | Small meshes + Y-billboard sprites |
